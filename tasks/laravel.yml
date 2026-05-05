@@ -1,0 +1,85 @@
+---
+# Laravel post-clone setup
+# Triggered only when is_laravel is true and git_repo_url is defined.
+
+# ─── 1. Dependencies ──────────────────────────────────────────────────────────
+
+- name: Install Composer (if not present)
+  shell: |
+    curl -sS https://getcomposer.org/installer | {{ php_binary }} -- --install-dir=/usr/local/bin --filename=composer
+  args:
+    creates: /usr/local/bin/composer
+
+- name: Install Composer dependencies (including dev, required for seeders)
+  composer:
+    command: install
+    working_dir: "{{ project_dir }}"
+    no_dev: no
+    optimize_autoloader: yes
+  environment:
+    COMPOSER_ALLOW_SUPERUSER: "1"
+
+# ─── 2. Environment file ──────────────────────────────────────────────────────
+
+- name: Deploy .env from template
+  template:
+    src: "{{ playbook_dir }}/templates/laravel.env.j2"
+    dest: "{{ project_dir }}/.env"
+    owner: "www-data"
+    group: "www-data"
+    mode: '0640'
+
+# ─── 3. Application key ───────────────────────────────────────────────────────
+
+- name: Generate application key
+  command: "{{ php_binary }} artisan key:generate --force"
+  args:
+    chdir: "{{ project_dir }}"
+
+# ─── 4. Storage symlink ───────────────────────────────────────────────────────
+
+- name: Create storage symlink (public/storage → storage/app/public)
+  command: "{{ php_binary }} artisan storage:link --force"
+  args:
+    chdir: "{{ project_dir }}"
+
+# ─── 5. Database migrations ───────────────────────────────────────────────────
+# Safe by default: runs `migrate` (additive).
+# Set `laravel_fresh_install: true` ONLY for first deploys or dev/staging resets —
+# `migrate:fresh --seed` DROPS ALL TABLES before re-creating them.
+
+- name: Run database migrations (safe — keeps existing data)
+  command: "{{ php_binary }} artisan migrate --force"
+  args:
+    chdir: "{{ project_dir }}"
+  when: not (laravel_fresh_install | default(false) | bool)
+
+- name: Run fresh migrations and seeders (DESTRUCTIVE — drops all tables)
+  command: "{{ php_binary }} artisan migrate:fresh --seed --force"
+  args:
+    chdir: "{{ project_dir }}"
+  when: laravel_fresh_install | default(false) | bool
+
+# ─── 6. Clear all caches (after migrations so the cache table exists) ─────────
+
+- name: Clear all caches
+  command: "{{ php_binary }} artisan optimize:clear"
+  args:
+    chdir: "{{ project_dir }}"
+
+# ─── 7. Permissions ───────────────────────────────────────────────────────────
+
+- name: Set ownership on storage and bootstrap/cache
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "www-data"
+    group: "www-data"
+    recurse: yes
+  loop:
+    - "{{ project_dir }}/storage"
+    - "{{ project_dir }}/bootstrap/cache"
+
+- name: Display Laravel setup info
+  debug:
+    msg: "✅ Laravel post-clone setup completed for {{ domain }}"

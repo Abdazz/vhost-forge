@@ -1,0 +1,42 @@
+server {
+    listen 80;
+    server_name {{ domain }};
+
+    # Redirect all HTTP traffic to HTTPS
+    return 301 https://$host$request_uri;
+
+    access_log /var/log/nginx/{{ domain }}-access.log;
+    error_log /var/log/nginx/{{ domain }}-error.log;
+}
+
+server {
+    listen 443 ssl;
+    server_name {{ domain }};
+    root {{ web_root }};
+    index index.html index.htm index.php;
+
+    ssl_certificate /etc/letsencrypt/live/{{ domain }}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ domain }}/privkey.pem;
+
+    # SSL settings
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php-fpm.sock;
+    }
+
+    # Deny access to .htaccess files
+    location ~ /\.ht {
+        deny all;
+    }
+
+    access_log /var/log/nginx/{{ domain }}-ssl-access.log;
+    error_log /var/log/nginx/{{ domain }}-ssl-error.log;
+}

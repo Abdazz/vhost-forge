@@ -1,0 +1,22 @@
+# Secrets — never commit
+vars.yml
+inventory.ini
+*.vault
+.vault_pass
+.vault_password
+
+# Python venv
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Ansible
+*.retry

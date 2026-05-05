@@ -1,0 +1,79 @@
+---
+- name: Setup Virtual Host with Web Server, SSL, and MySQL
+  hosts: all
+  become: yes
+  vars_files:
+    - vars.yml
+
+  tasks:
+    # === Validate web_server value ===
+    - name: Validate web_server choice
+      fail:
+        msg: "Invalid web_server value '{{ web_server }}'. Must be 'apache2' or 'nginx'."
+      when: web_server not in ['apache2', 'nginx']
+
+    # === Prompt for missing variables and compute derived values ===
+    - name: Collect variables and compute defaults
+      include_tasks: tasks/prompts.yml
+
+    # === Create Linux user ===
+    - name: Setup Linux user
+      include_tasks: tasks/user.yml
+
+    # === Create project directory ===
+    - name: Setup project directory
+      include_tasks: tasks/project.yml
+
+    # === Install and configure web server ===
+    - name: Setup Apache2
+      include_tasks: tasks/apache.yml
+      when: web_server == "apache2"
+
+    - name: Setup Nginx
+      include_tasks: tasks/nginx.yml
+      when: web_server == "nginx"
+
+    # === Generate SSL certificate ===
+    - name: Setup SSL certificate
+      include_tasks: tasks/ssl.yml
+
+    # === Create MySQL database and user ===
+    - name: Setup MySQL database
+      include_tasks: tasks/mysql.yml
+
+    # === Clone Git repository (optional) ===
+    - name: Clone Git repository
+      include_tasks: tasks/git.yml
+      when: git_repo_url is defined and git_repo_url != ""
+
+    # === Laravel post-clone setup (optional) ===
+    - name: Laravel setup
+      include_tasks: tasks/laravel.yml
+      when:
+        - is_laravel | default(false) | bool
+        - git_repo_url is defined and git_repo_url != ""
+
+    # === Display configuration summary ===
+    - name: Display configuration summary
+      debug:
+        msg: >
+          ✅ Full setup completed for {{ domain }}
+
+          =========================================
+                    CONFIGURATION SUMMARY
+          =========================================
+          Web Server:          {{ web_server }}
+          Domain:              {{ domain }}
+          Project Directory:   {{ project_dir }}
+          Git Repository:      {{ git_repo_url if git_repo_url is defined and git_repo_url != '' else 'N/A' }}
+          Laravel Project:     {{ 'Yes' if is_laravel | default(false) | bool else 'No' }}
+
+          --- System User ---
+          Username:            {{ username }}
+          Password:            (as provided)
+
+          --- MySQL Database ---
+          Database Name:       {{ mysql_db }}
+          Database User:       {{ mysql_user }}
+          Database Password:   (as provided)
+          =========================================

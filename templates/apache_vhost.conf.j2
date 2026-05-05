@@ -1,0 +1,29 @@
+<VirtualHost *:80>
+    ServerName {{ domain }}
+    
+    # Redirect all HTTP traffic to HTTPS
+    RewriteEngine On
+    RewriteCond %{HTTPS} off
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}$1 [R=301,L]
+    
+    ErrorLog ${APACHE_LOG_DIR}/{{ domain }}-error.log
+    CustomLog ${APACHE_LOG_DIR}/{{ domain }}-access.log combined
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerName {{ domain }}
+    DocumentRoot {{ web_root }}
+
+    <Directory {{ web_root }}>
+        Options -Indexes +FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    SSLEngine on
+    SSLCertificateFile /etc/letsencrypt/live/{{ domain }}/fullchain.pem
+    SSLCertificateKeyFile /etc/letsencrypt/live/{{ domain }}/privkey.pem
+
+    ErrorLog ${APACHE_LOG_DIR}/{{ domain }}-ssl-error.log
+    CustomLog ${APACHE_LOG_DIR}/{{ domain }}-ssl-access.log combined
+</VirtualHost>

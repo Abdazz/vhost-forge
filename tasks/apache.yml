@@ -1,0 +1,81 @@
+---
+# Install and configure Apache2
+
+- name: Check if Nginx is installed
+  command: dpkg -l nginx
+  register: nginx_installed
+  ignore_errors: yes
+  changed_when: false
+
+- name: Stop Nginx (conflicts with Apache2 on port 80/443)
+  service:
+    name: nginx
+    state: stopped
+    enabled: no
+  when: nginx_installed.rc == 0
+
+- name: Update apt cache
+  apt:
+    update_cache: yes
+
+- name: Install Apache2
+  apt:
+    name: apache2
+    state: present
+
+- name: Install Certbot with Apache plugin
+  apt:
+    name:
+      - certbot
+      - python3-certbot-apache
+    state: present
+
+- name: Enable SSL module
+  command: a2enmod ssl
+  register: ssl_result
+  changed_when: "'enabled' in ssl_result.stdout or 'already enabled' in ssl_result.stdout"
+  failed_when: "ssl_result.rc != 0 and 'already enabled' not in ssl_result.stdout"
+
+- name: Enable Rewrite module
+  command: a2enmod rewrite
+  register: rewrite_result
+  changed_when: "'enabled' in rewrite_result.stdout or 'already enabled' in rewrite_result.stdout"
+  failed_when: "rewrite_result.rc != 0 and 'already enabled' not in rewrite_result.stdout"
+
+- name: Check if SSL certificate already exists
+  stat:
+    path: "/etc/letsencrypt/live/{{ domain }}/fullchain.pem"
+  register: ssl_cert_check
+
+- name: Deploy Apache HTTP-only config (no SSL certificate yet)
+  template:
+    src: apache_vhost_http.conf.j2
+    dest: "{{ vhost_conf }}"
+    owner: root
+    group: root
+    mode: '0644'
+  when: not ssl_cert_check.stat.exists
+
+- name: Deploy Apache full config with SSL (certificate exists)
+  template:
+    src: apache_vhost.conf.j2
+    dest: "{{ vhost_conf }}"
+    owner: root
+    group: root
+    mode: '0644'
+  when: ssl_cert_check.stat.exists
+
+- name: Enable Apache site
+  command: "a2ensite {{ domain }}"
+  register: ensite_result
+  changed_when: "'enabled' in ensite_result.stdout"
+
+- name: Ensure Apache is started
+  service:
+    name: apache2
+    state: restarted
+    enabled: yes
+
+- name: Display Apache info
+  debug:
+    msg: "✅ Apache2 configured for {{ domain }}{{ '' if ssl_cert_check.stat.exists else ' (HTTP-only, SSL will be configured after certificate generation)' }}"

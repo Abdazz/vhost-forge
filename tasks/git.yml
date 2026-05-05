@@ -1,0 +1,45 @@
+---
+# Clone a Git repository into the project directory (optional)
+# Triggered only if git_repo_url is defined and not empty.
+
+- name: Install Git
+  apt:
+    name: git
+    state: present
+
+- name: Clean project directory before cloning
+  file:
+    path: "{{ project_dir }}"
+    state: absent
+
+- name: Recreate empty project directory
+  file:
+    path: "{{ project_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Clone repository (with SSH deploy key)
+  environment:
+    GIT_SSH_COMMAND: "ssh -i {{ git_deploy_key }} -o StrictHostKeyChecking=no"
+  command: >
+    git clone --branch {{ git_repo_branch }} {{ git_repo_url }} {{ project_dir }}
+  when: git_deploy_key != ""
+
+- name: Clone repository (public, no deploy key)
+  command: >
+    git clone --branch {{ git_repo_branch }} {{ git_repo_url }} {{ project_dir }}
+  when: git_deploy_key == ""
+
+- name: Fix project directory ownership after clone
+  file:
+    path: "{{ project_dir }}"
+    state: directory
+    owner: "{{ username }}"
+    group: "{{ username }}"
+    recurse: yes
+
+- name: Display Git clone info
+  debug:
+    msg: "✅ Repository '{{ git_repo_url }}' (branch: {{ git_repo_branch }}) cloned into {{ project_dir }}"

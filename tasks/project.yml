@@ -1,0 +1,22 @@
+---
+# Create project directory and welcome page
+
+- name: Create project directory
+  file:
+    path: "{{ project_dir }}"
+    state: directory
+    owner: "{{ username }}"
+    group: "{{ username }}"
+    mode: '0755'
+
+- name: Create index.html welcome page
+  copy:
+    dest: "{{ project_dir }}/index.html"
+    content: "<h1>Welcome to {{ domain }}</h1>\n"
+    owner: "{{ username }}"
+    group: "{{ username }}"
+    mode: '0644'
+
+- name: Display project directory info
+  debug:
+    msg: "✅ Project directory created at {{ project_dir }}"

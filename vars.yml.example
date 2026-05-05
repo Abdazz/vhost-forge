@@ -1,0 +1,50 @@
+# =============================================================================
+# vhost-forge — Configuration Variables (EXAMPLE)
+# =============================================================================
+# Copy this file to vars.yml and fill in your values.
+# Leave a variable empty to be prompted at runtime.
+#
+# ⚠️  SECURITY
+# vars.yml is gitignored on purpose — it contains plaintext secrets.
+# For production, encrypt it with Ansible Vault:
+#   ansible-vault encrypt vars.yml
+#   ansible-playbook -i inventory.ini setup_vhost.yml --ask-vault-pass
+# =============================================================================
+
+# Web server: "apache2" or "nginx"
+web_server: "apache2"
+
+# Linux user credentials
+username: "myuser"
+linux_password: "ChangeMe!"
+
+# Project information
+project_name: "myproject"
+domain: "example.com"
+
+# MySQL credentials
+mysql_password: "ChangeMe!"
+
+# Optional: custom database/user names (leave empty to auto-generate from project_name/username)
+mysql_db_name: ""
+mysql_user_name: ""
+
+# Certbot email for SSL certificate registration
+certbot_email: "you@example.com"
+
+# Git repository cloning (optional)
+# Leave git_repo_url empty to skip cloning
+git_repo_url: ""                 # e.g. "https://github.com/user/repo.git" or "git@github.com:user/repo.git"
+git_repo_branch: "main"          # Branch to clone
+git_deploy_key: ""               # Absolute path to SSH private key on the server (leave empty for public repos)
+
+# Laravel project (optional)
+# Set is_laravel to true to run Laravel post-clone setup steps
+is_laravel: false                # true | false
+php_binary: "php"                # Path to PHP binary (e.g. "php8.3" or "/usr/bin/php")
+
+# ⚠️  DESTRUCTIVE: when true, runs `migrate:fresh --seed` which DROPS ALL TABLES
+# before re-creating them. Leave false on existing databases.
+# true  → fresh install (first deploy, dev/staging reset)
+# false → safe `migrate` (production, re-runs)
+laravel_fresh_install: false

@@ -1,0 +1,80 @@
+---
+# Install and configure Nginx
+
+- name: Check if Apache2 is installed
+  command: dpkg -l apache2
+  register: apache2_installed
+  ignore_errors: yes
+  changed_when: false
+
+- name: Stop Apache2 (conflicts with Nginx on port 80/443)
+  service:
+    name: apache2
+    state: stopped
+    enabled: no
+  when: apache2_installed.rc == 0
+
+- name: Update apt cache
+  apt:
+    update_cache: yes
+
+- name: Install Nginx
+  apt:
+    name: nginx
+    state: present
+
+- name: Install Certbot with Nginx plugin
+  apt:
+    name:
+      - certbot
+      - python3-certbot-nginx
+    state: present
+
+- name: Check if SSL certificate already exists
+  stat:
+    path: "/etc/letsencrypt/live/{{ domain }}/fullchain.pem"
+  register: ssl_cert_check
+
+- name: Deploy Nginx HTTP-only config (no SSL certificate yet)
+  template:
+    src: nginx_vhost_http.conf.j2
+    dest: "{{ vhost_conf }}"
+    owner: root
+    group: root
+    mode: '0644'
+  when: not ssl_cert_check.stat.exists
+
+- name: Deploy Nginx full config with SSL (certificate exists)
+  template:
+    src: nginx_vhost.conf.j2
+    dest: "{{ vhost_conf }}"
+    owner: root
+    group: root
+    mode: '0644'
+  when: ssl_cert_check.stat.exists
+
+- name: Enable Nginx site (create symlink)
+  file:
+    src: "/etc/nginx/sites-available/{{ domain }}.conf"
+    dest: "/etc/nginx/sites-enabled/{{ domain }}.conf"
+    state: link
+
+- name: Remove default Nginx site
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+
+- name: Test Nginx configuration
+  command: nginx -t
+  register: nginx_test
+  failed_when: "nginx_test.rc != 0"
+
+- name: Ensure Nginx is started
+  service:
+    name: nginx
+    state: restarted
+    enabled: yes
+
+- name: Display Nginx info
+  debug:
+    msg: "✅ Nginx configured for {{ domain }}{{ '' if ssl_cert_check.stat.exists else ' (HTTP-only, SSL will be configured after certificate generation)' }}"

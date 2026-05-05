@@ -1,0 +1,89 @@
+---
+# Generate SSL certificate with Let's Encrypt (Certbot)
+
+- name: Check if SSL certificate exists
+  stat:
+    path: "/etc/letsencrypt/live/{{ domain }}/fullchain.pem"
+  register: ssl_cert
+
+- name: Stop web server for Certbot standalone authentication
+  service:
+    name: "{{ web_server }}"
+    state: stopped
+  when: not ssl_cert.stat.exists
+
+- name: Generate SSL certificate with Certbot
+  command: >
+    certbot certonly --standalone -d {{ domain }}
+    --staple-ocsp -m {{ certbot_email }} --agree-tos --non-interactive
+  when: not ssl_cert.stat.exists
+  register: certbot_result
+  ignore_errors: yes
+
+- name: Display Certbot error message if certificate generation failed
+  debug:
+    msg: >
+      ⚠️  SSL certificate generation failed!
+
+      This typically means the domain {{ domain }} is not pointing to this server's IP
+      ({{ ansible_default_ipv4.address }}).
+
+      To resolve this:
+        1. Update your DNS A record for {{ domain }} to point to {{ ansible_default_ipv4.address }}
+        2. Wait for DNS propagation (usually 5-30 minutes)
+        3. Re-run this playbook
+
+      For more details, check: /var/log/letsencrypt/letsencrypt.log
+  when: certbot_result is changed and certbot_result.rc != 0
+
+- name: Start web server after SSL certificate generation
+  service:
+    name: "{{ web_server }}"
+    state: started
+  when: not ssl_cert.stat.exists and (certbot_result is not changed or certbot_result.rc == 0)
+
+- name: Deploy Apache full config with SSL after certificate generation
+  template:
+    src: apache_vhost.conf.j2
+    dest: "{{ vhost_conf }}"
+    owner: root
+    group: root
+    mode: '0644'
+  when: web_server == "apache2" and not ssl_cert.stat.exists and (certbot_result is not changed or certbot_result.rc == 0)
+
+- name: Reload Apache with SSL configuration
+  service:
+    name: apache2
+    state: reloaded
+  when: web_server == "apache2" and not ssl_cert.stat.exists and (certbot_result is not changed or certbot_result.rc == 0)
+
+- name: Deploy Nginx full config with SSL after certificate generation
+  template:
+    src: nginx_vhost.conf.j2
+    dest: "{{ vhost_conf }}"
+    owner: root
+    group: root
+    mode: '0644'
+  when: web_server == "nginx" and not ssl_cert.stat.exists and (certbot_result is not changed or certbot_result.rc == 0)
+
+- name: Reload Nginx with SSL configuration
+  service:
+    name: nginx
+    state: reloaded
+  when: web_server == "nginx" and not ssl_cert.stat.exists and (certbot_result is not changed or certbot_result.rc == 0)
+
+- name: Test Apache configuration
+  command: apache2ctl configtest
+  register: apache_config_test
+  failed_when: "apache_config_test.rc != 0"
+  when: web_server == "apache2" and (certbot_result is not changed or certbot_result.rc == 0)
+
+- name: Test Nginx configuration
+  command: nginx -t
+  register: nginx_config_test
+  failed_when: "nginx_config_test.rc != 0"
+  when: web_server == "nginx" and (certbot_result is not changed or certbot_result.rc == 0)
+
+- name: Display SSL certificate status
+  debug:
+    msg: "✅ SSL certificate for {{ domain }} is ready."

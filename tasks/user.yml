@@ -1,0 +1,25 @@
+---
+# Create Linux user with sudo access
+
+- name: Create Linux user
+  user:
+    name: "{{ username }}"
+    home: "{{ user_home }}"
+    shell: /bin/bash
+    state: present
+
+- name: Add user to sudo group
+  user:
+    name: "{{ username }}"
+    groups: sudo
+    append: yes
+
+- name: Set user password
+  user:
+    name: "{{ username }}"
+    password: "{{ linux_password | password_hash('sha512') }}"
+    update_password: always
+
+- name: Display user creation info
+  debug:
+    msg: "✅ Linux user '{{ username }}' created/updated."
