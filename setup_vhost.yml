@@ -69,11 +69,11 @@
           Laravel Project:     {{ 'Yes' if is_laravel | default(false) | bool else 'No' }}
 
           --- System User ---
-          Username:            {{ username }}
+          Username:            {{ server_username }}
           Password:            (as provided)
 
           --- MySQL Database ---
-          Database Name:       {{ mysql_db }}
-          Database User:       {{ mysql_user }}
+          Database Name:       {{ mysql_database }}
+          Database User:       {{ mysql_username }}
           Database Password:   (as provided)
           =========================================

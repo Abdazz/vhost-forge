@@ -20,3 +20,6 @@ __pycache__/
 
 # Ansible
 *.retry
+
+# Working notes (not public docs)
+ROADMAP.md

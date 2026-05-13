@@ -80,18 +80,18 @@ cp inventory.ini.example inventory.ini
 # Web server: "apache2" or "nginx"
 web_server: "apache2"
 
-# Linux credentials
-username: "myuser"
-linux_password: "MyPassword"
+# Server (Linux) user credentials
+server_username: "myuser"
+server_password: "MyPassword"
 
-# Project information
+# Project information (project_name: lowercase, no spaces)
 project_name: "myproject"
 domain: "mydomain.com"
 
-# MySQL credentials
-mysql_password: "MySQLPassword"
-mysql_db_name: ""        # Default: <project_name>_db
-mysql_user_name: ""      # Default: <username>
+# MySQL credentials — password for the per-project MySQL user (NOT root)
+mysql_user_password: "MySQLPassword"
+mysql_database: ""       # Default: <project_name>_db
+mysql_username: ""       # Default: <server_username>
 
 # Email for SSL certificate
 certbot_email: "email@example.com"
@@ -99,12 +99,12 @@ certbot_email: "email@example.com"
 # Git (optional) — leave empty to disable
 git_repo_url: ""
 git_repo_branch: "main"
-git_deploy_key: ""       # Absolute path to a private SSH key on the server
+git_deploy_key_path: ""        # Absolute path to a private SSH key on the server
 
 # Laravel (optional)
 is_laravel: false              # true to enable Laravel setup
 php_binary: "php"              # e.g. "php8.3" or "/usr/bin/php"
-laravel_fresh_install: false   # ⚠️ true = migrate:fresh --seed (DROPS ALL TABLES)
+laravel_migrate_fresh: false   # ⚠️ true = migrate:fresh --seed (DROPS ALL TABLES)
 ```
 
 > **💡 Tip**: If a variable is left empty, the playbook will prompt you to enter it interactively at runtime.
@@ -160,14 +160,14 @@ Database Password:   (as provided)
 | Variable | Required | Description |
 |---|---|---|
 | `web_server` | ✅ | Web server: `apache2` or `nginx` |
-| `username` | ✅ | Linux username to create |
-| `linux_password` | ✅ | Linux user password |
-| `project_name` | ✅ | Project name (no spaces) |
+| `server_username` | ✅ | Server (Linux) username to create |
+| `server_password` | ✅ | Server (Linux) user password |
+| `project_name` | ✅ | Project name (lowercase, no spaces) |
 | `domain` | ✅ | Domain name (e.g. `mydomain.com`) |
-| `mysql_password` | ✅ | MySQL password |
+| `mysql_user_password` | ✅ | Password for the per-project MySQL user (not root) |
 | `certbot_email` | ✅ | Email for Let's Encrypt registration |
-| `mysql_db_name` | ➖ | Database name — default: `<project_name>_db` |
-| `mysql_user_name` | ➖ | MySQL user — default: `<username>` |
+| `mysql_database` | ➖ | Database name — default: `<project_name>_db` |
+| `mysql_username` | ➖ | MySQL user — default: `<server_username>` |
 
 ### Git variables (optional)
 
@@ -175,20 +175,20 @@ Database Password:   (as provided)
 |---|---|---|
 | `git_repo_url` | Repository URL — **leave empty to disable** | `git@github.com:user/repo.git` |
 | `git_repo_branch` | Branch to clone | `main`, `production` |
-| `git_deploy_key` | Absolute path to the private SSH key on the server | `/root/.ssh/deploy_key` |
+| `git_deploy_key_path` | Absolute path to the private SSH key on the server | `/root/.ssh/deploy_key` |
 
 **Public repository (HTTPS):**
 ```yaml
 git_repo_url: "https://github.com/user/my-project.git"
 git_repo_branch: "main"
-git_deploy_key: ""
+git_deploy_key_path: ""
 ```
 
 **Private repository (SSH):**
 ```yaml
 git_repo_url: "git@github.com:user/my-private-project.git"
 git_repo_branch: "production"
-git_deploy_key: "/root/.ssh/deploy_key"
+git_deploy_key_path: "/root/.ssh/deploy_key"
 ```
 
 > **💡** For a private SSH repository, the corresponding public key must be added as a **Deploy Key** in the GitHub repository settings.
@@ -199,7 +199,7 @@ git_deploy_key: "/root/.ssh/deploy_key"
 |---|---|---|
 | `is_laravel` | `false` | Enable Laravel setup after cloning |
 | `php_binary` | `"php"` | Path to the PHP executable (e.g. `php8.3`) |
-| `laravel_fresh_install` | `false` | ⚠️ `true` → `migrate:fresh --seed` (drops all tables). `false` → safe `migrate`. |
+| `laravel_migrate_fresh` | `false` | ⚠️ `true` → `migrate:fresh --seed` (drops all tables). `false` → safe `migrate`. |
 
 When `is_laravel: true`, the playbook automatically runs in order:
 
@@ -209,11 +209,11 @@ When `is_laravel: true`, the playbook automatically runs in order:
 | `.env` deployment | Jinja2 template with pre-filled database credentials |
 | Application key | `php artisan key:generate` |
 | Storage link | `php artisan storage:link` |
-| Migrations | `php artisan migrate` *(or `migrate:fresh --seed` if `laravel_fresh_install: true`)* |
+| Migrations | `php artisan migrate` *(or `migrate:fresh --seed` if `laravel_migrate_fresh: true`)* |
 | Cache clearing | `php artisan optimize:clear` |
 | Permissions | `storage/` and `bootstrap/cache/` → `www-data` |
 
-> **⚠️ Destructive flag**: `laravel_fresh_install: true` runs `migrate:fresh --seed` — this **drops every table** before re-creating them. Use only for first deployments or dev/staging resets. Leave `false` for production and re-runs.
+> **⚠️ Destructive flag**: `laravel_migrate_fresh: true` runs `migrate:fresh --seed` — this **drops every table** before re-creating them. Use only for first deployments or dev/staging resets. Leave `false` for production and re-runs.
 
 ---
 
@@ -292,7 +292,7 @@ See the [Ansible Vault documentation](https://docs.ansible.com/ansible/latest/va
 
 - **DNS**: The domain must point to the server IP **before** running, otherwise Certbot will fail.
 - **MariaDB**: The MariaDB service must be installed and running on the target server.
-- **Idempotency**: The playbook can be re-run safely — already-created resources are skipped. By default, `laravel_fresh_install: false` so re-runs use `migrate` (additive) and never drop existing data.
+- **Idempotency**: The playbook can be re-run safely — already-created resources are skipped. By default, `laravel_migrate_fresh: false` so re-runs use `migrate` (additive) and never drop existing data.
 
 ---
 

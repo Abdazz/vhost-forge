@@ -45,20 +45,20 @@
 
 # ─── 5. Database migrations ───────────────────────────────────────────────────
 # Safe by default: runs `migrate` (additive).
-# Set `laravel_fresh_install: true` ONLY for first deploys or dev/staging resets —
+# Set `laravel_migrate_fresh: true` ONLY for first deploys or dev/staging resets —
 # `migrate:fresh --seed` DROPS ALL TABLES before re-creating them.
 
 - name: Run database migrations (safe — keeps existing data)
   command: "{{ php_binary }} artisan migrate --force"
   args:
     chdir: "{{ project_dir }}"
-  when: not (laravel_fresh_install | default(false) | bool)
+  when: not (laravel_migrate_fresh | default(false) | bool)
 
 - name: Run fresh migrations and seeders (DESTRUCTIVE — drops all tables)
   command: "{{ php_binary }} artisan migrate:fresh --seed --force"
   args:
     chdir: "{{ project_dir }}"
-  when: laravel_fresh_install | default(false) | bool
+  when: laravel_migrate_fresh | default(false) | bool
 
 # ─── 6. Clear all caches (after migrations so the cache table exists) ─────────
 

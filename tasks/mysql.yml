@@ -19,26 +19,26 @@
 
 - name: Check if MySQL database exists
   mysql_query:
-    query: "SHOW DATABASES LIKE '{{ mysql_db }}'"
+    query: "SHOW DATABASES LIKE '{{ mysql_database }}'"
     login_unix_socket: /var/run/mysqld/mysqld.sock
   register: db_exists
   ignore_errors: yes
 
 - name: Create MySQL database
   mysql_query:
-    query: "CREATE DATABASE {{ mysql_db }} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+    query: "CREATE DATABASE {{ mysql_database }} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
     login_unix_socket: /var/run/mysqld/mysqld.sock
   when: db_exists.query_result[0] | length == 0
 
 - name: Create MySQL user and grant privileges
   mysql_user:
-    name: "{{ mysql_user }}"
-    password: "{{ mysql_password }}"
+    name: "{{ mysql_username }}"
+    password: "{{ mysql_user_password }}"
     host: localhost
-    priv: "{{ mysql_db }}.*:ALL"
+    priv: "{{ mysql_database }}.*:ALL"
     state: present
     login_unix_socket: /var/run/mysqld/mysqld.sock
 
 - name: Display MySQL info
   debug:
-    msg: "✅ MySQL database '{{ mysql_db }}' and user '{{ mysql_user }}' ready."
+    msg: "✅ MySQL database '{{ mysql_database }}' and user '{{ mysql_username }}' ready."

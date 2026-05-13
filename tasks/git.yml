@@ -22,22 +22,22 @@
 
 - name: Clone repository (with SSH deploy key)
   environment:
-    GIT_SSH_COMMAND: "ssh -i {{ git_deploy_key }} -o StrictHostKeyChecking=no"
+    GIT_SSH_COMMAND: "ssh -i {{ git_deploy_key_path }} -o StrictHostKeyChecking=no"
   command: >
     git clone --branch {{ git_repo_branch }} {{ git_repo_url }} {{ project_dir }}
-  when: git_deploy_key != ""
+  when: git_deploy_key_path != ""
 
 - name: Clone repository (public, no deploy key)
   command: >
     git clone --branch {{ git_repo_branch }} {{ git_repo_url }} {{ project_dir }}
-  when: git_deploy_key == ""
+  when: git_deploy_key_path == ""
 
 - name: Fix project directory ownership after clone
   file:
     path: "{{ project_dir }}"
     state: directory
-    owner: "{{ username }}"
-    group: "{{ username }}"
+    owner: "{{ server_username }}"
+    group: "{{ server_username }}"
     recurse: yes
 
 - name: Display Git clone info

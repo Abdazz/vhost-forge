@@ -1,28 +1,28 @@
 ---
 # Prompt for missing required variables and compute derived values
 
-- name: Prompt for username if not provided
+- name: Prompt for server_username if not provided
   pause:
-    prompt: "Enter Linux username"
-  register: username_prompt
-  when: username == ""
+    prompt: "Enter server (Linux) username"
+  register: server_username_prompt
+  when: server_username == ""
 
-- name: Set username from prompt
+- name: Set server_username from prompt
   set_fact:
-    username: "{{ username_prompt.user_input }}"
-  when: username_prompt is changed
+    server_username: "{{ server_username_prompt.user_input }}"
+  when: server_username_prompt is changed
 
-- name: Prompt for linux_password if not provided
+- name: Prompt for server_password if not provided
   pause:
-    prompt: "Enter Linux password"
+    prompt: "Enter server (Linux) password"
     echo: no
-  register: linux_password_prompt
-  when: linux_password == ""
+  register: server_password_prompt
+  when: server_password == ""
 
-- name: Set linux_password from prompt
+- name: Set server_password from prompt
   set_fact:
-    linux_password: "{{ linux_password_prompt.user_input }}"
-  when: linux_password_prompt is changed
+    server_password: "{{ server_password_prompt.user_input }}"
+  when: server_password_prompt is changed
 
 - name: Prompt for project_name if not provided
   pause:
@@ -46,33 +46,31 @@
     domain: "{{ domain_prompt.user_input }}"
   when: domain_prompt is changed
 
-- name: Prompt for mysql_password if not provided
+- name: Prompt for mysql_user_password if not provided
   pause:
-    prompt: "Enter MySQL password"
+    prompt: "Enter MySQL user password"
     echo: no
-  register: mysql_password_prompt
-  when: mysql_password == ""
+  register: mysql_user_password_prompt
+  when: mysql_user_password == ""
 
-- name: Set mysql_password from prompt
+- name: Set mysql_user_password from prompt
   set_fact:
-    mysql_password: "{{ mysql_password_prompt.user_input }}"
-  when: mysql_password_prompt is changed
+    mysql_user_password: "{{ mysql_user_password_prompt.user_input }}"
+  when: mysql_user_password_prompt is changed
 
 # === Compute derived variables ===
 
-- name: Set mysql_db_name to default if empty
+- name: Set mysql_database to default if empty
   set_fact:
-    mysql_db_name: "{{ mysql_db_name if mysql_db_name else (project_name | replace('-', '_') ~ '_db') }}"
+    mysql_database: "{{ mysql_database if mysql_database else (project_name | replace('-', '_') ~ '_db') }}"
 
-- name: Set mysql_user_name to default if empty
+- name: Set mysql_username to default if empty
   set_fact:
-    mysql_user_name: "{{ mysql_user_name if mysql_user_name else (username | replace('-', '_')) }}"
+    mysql_username: "{{ mysql_username if mysql_username else (server_username | replace('-', '_')) }}"
 
 - name: Set derived variables
   set_fact:
-    user_home: "/home/{{ username }}"
+    user_home: "/home/{{ server_username }}"
     project_dir: "/var/www/{{ project_name }}"
     vhost_conf: "{{ '/etc/apache2/sites-available/' ~ domain ~ '.conf' if web_server == 'apache2' else '/etc/nginx/sites-available/' ~ domain ~ '.conf' }}"
-    mysql_db: "{{ mysql_db_name }}"
-    mysql_user: "{{ mysql_user_name }}"
     web_root: "{{ '/var/www/' ~ project_name ~ '/public' if is_laravel | default(false) | bool else '/var/www/' ~ project_name }}"
